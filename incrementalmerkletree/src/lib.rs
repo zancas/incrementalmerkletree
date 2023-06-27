@@ -125,7 +125,7 @@ impl Position {
 
     /// Returns an iterator over the addresses of nodes required to create a witness for this
     /// position, beginning with the sibling of the leaf at this position and ending with the
-    /// sibling of the ancestor of the leaf at this position that is required to compute a root at
+    /// sibling of the descendant of the leaf at this position that is required to compute a root at
     /// the specified level.
     pub fn witness_addrs(&self, root_level: Level) -> impl Iterator<Item = (Address, Source)> {
         WitnessAddrsIter {
@@ -333,36 +333,36 @@ impl Address {
         }
     }
 
-    /// Returns whether this address is an ancestor of the specified address.
-    pub fn is_ancestor_of(&self, addr: &Self) -> bool {
+    /// Returns whether this address is a descendant of the specified address.
+    pub fn is_descendant_of(&self, addr: &Self) -> bool {
         self.level > addr.level && { addr.index >> (self.level.0 - addr.level.0) == self.index }
     }
 
-    /// Returns the common ancestor of `self` and `other` having the smallest level value.
-    pub fn common_ancestor(&self, other: &Self) -> Self {
+    /// Returns the common descendant of `self` and `other` having the smallest level value.
+    pub fn common_descendant(&self, other: &Self) -> Self {
         if self.level >= other.level {
-            let other_ancestor_idx = other.index >> (self.level.0 - other.level.0);
-            let index_delta = self.index.abs_diff(other_ancestor_idx);
+            let other_descendant_idx = other.index >> (self.level.0 - other.level.0);
+            let index_delta = self.index.abs_diff(other_descendant_idx);
             let level_delta = (u64::BITS - index_delta.leading_zeros()) as u8;
             Address {
                 level: self.level + level_delta,
-                index: std::cmp::max(self.index, other_ancestor_idx) >> level_delta,
+                index: std::cmp::max(self.index, other_descendant_idx) >> level_delta,
             }
         } else {
-            let self_ancestor_idx = self.index >> (other.level.0 - self.level.0);
-            let index_delta = other.index.abs_diff(self_ancestor_idx);
+            let self_descendant_idx = self.index >> (other.level.0 - self.level.0);
+            let index_delta = other.index.abs_diff(self_descendant_idx);
             let level_delta = (u64::BITS - index_delta.leading_zeros()) as u8;
             Address {
                 level: other.level + level_delta,
-                index: std::cmp::max(other.index, self_ancestor_idx) >> level_delta,
+                index: std::cmp::max(other.index, self_descendant_idx) >> level_delta,
             }
         }
     }
 
-    /// Returns whether this address is an ancestor of, or is equal to,
+    /// Returns whether this address is a descendant of, or is equal to,
     /// the specified address.
     pub fn contains(&self, addr: &Self) -> bool {
-        self == addr || self.is_ancestor_of(addr)
+        self == addr || self.is_descendant_of(addr)
     }
 
     /// Returns the minimum value among the range of leaf positions that are contained within the
@@ -392,7 +392,7 @@ impl Address {
         }
     }
 
-    /// Returns either the ancestor of this address at the given level (if the level is greater
+    /// Returns either the descendant of this address at the given level (if the level is greater
     /// than or equal to that of this address) or the range of indices of root addresses of
     /// subtrees with roots at the given level contained within the tree with its root at this
     /// address otherwise.
@@ -688,12 +688,12 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn addr_is_ancestor() {
+    fn addr_is_descendant() {
         let l0 = Level(0);
         let l1 = Level(1);
-        assert!(Address::from_parts(l1, 0).is_ancestor_of(&Address::from_parts(l0, 0)));
-        assert!(Address::from_parts(l1, 0).is_ancestor_of(&Address::from_parts(l0, 1)));
-        assert!(!Address::from_parts(l1, 0).is_ancestor_of(&Address::from_parts(l0, 2)));
+        assert!(Address::from_parts(l1, 0).is_descendant_of(&Address::from_parts(l0, 0)));
+        assert!(Address::from_parts(l1, 0).is_descendant_of(&Address::from_parts(l0, 1)));
+        assert!(!Address::from_parts(l1, 0).is_descendant_of(&Address::from_parts(l0, 2)));
     }
 
     #[test]
@@ -743,10 +743,16 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn addr_is_ancestor_of() {
-        assert!(Address::from_parts(Level(3), 1).is_ancestor_of(&Address::from_parts(Level(2), 2)));
-        assert!(Address::from_parts(Level(3), 1).is_ancestor_of(&Address::from_parts(Level(1), 7)));
-        assert!(!Address::from_parts(Level(3), 1).is_ancestor_of(&Address::from_parts(Level(1), 8)));
+    fn addr_is_descendant_of() {
+        assert!(
+            Address::from_parts(Level(3), 1).is_descendant_of(&Address::from_parts(Level(2), 2))
+        );
+        assert!(
+            Address::from_parts(Level(3), 1).is_descendant_of(&Address::from_parts(Level(1), 7))
+        );
+        assert!(
+            !Address::from_parts(Level(3), 1).is_descendant_of(&Address::from_parts(Level(1), 8))
+        );
     }
 
     #[test]
@@ -782,25 +788,25 @@ pub(crate) mod tests {
     }
 
     #[test]
-    fn addr_common_ancestor() {
+    fn addr_common_descendant() {
         assert_eq!(
-            Address::from_parts(Level(2), 1).common_ancestor(&Address::from_parts(Level(3), 2)),
+            Address::from_parts(Level(2), 1).common_descendant(&Address::from_parts(Level(3), 2)),
             Address::from_parts(Level(5), 0)
         );
         assert_eq!(
-            Address::from_parts(Level(2), 2).common_ancestor(&Address::from_parts(Level(1), 7)),
+            Address::from_parts(Level(2), 2).common_descendant(&Address::from_parts(Level(1), 7)),
             Address::from_parts(Level(3), 1)
         );
         assert_eq!(
-            Address::from_parts(Level(2), 2).common_ancestor(&Address::from_parts(Level(2), 2)),
+            Address::from_parts(Level(2), 2).common_descendant(&Address::from_parts(Level(2), 2)),
             Address::from_parts(Level(2), 2)
         );
         assert_eq!(
-            Address::from_parts(Level(2), 2).common_ancestor(&Address::from_parts(Level(0), 9)),
+            Address::from_parts(Level(2), 2).common_descendant(&Address::from_parts(Level(0), 9)),
             Address::from_parts(Level(2), 2)
         );
         assert_eq!(
-            Address::from_parts(Level(0), 9).common_ancestor(&Address::from_parts(Level(2), 2)),
+            Address::from_parts(Level(0), 9).common_descendant(&Address::from_parts(Level(2), 2)),
             Address::from_parts(Level(2), 2)
         );
     }

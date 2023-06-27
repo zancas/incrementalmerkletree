@@ -1118,7 +1118,7 @@ impl<H: Hashable + Clone + PartialEq> LocatedPrunableTree<H> {
         match (opt_t0, opt_t1) {
             (Some(t0), Some(t1)) => {
                 let into = LocatedTree {
-                    root_addr: t0.root_addr().common_ancestor(&t1.root_addr()),
+                    root_addr: t0.root_addr().common_descendant(&t1.root_addr()),
                     root: Tree::empty(),
                 };
 
